@@ -26,175 +26,91 @@ All three are enforced in `WithdrawalService`. Violations raise a `BusinessRuleE
 - **Frontend:** Plain HTML5 / CSS3 / vanilla JavaScript (no build step required)
 - **Testing:** JUnit 5 + Mockito (unit tests for the business rules)
 
-## Project structure
+## Project structure (actual layout)
+
+This repository is intentionally small for an assessment; the backend and frontend assets live at the
+repository root (no nested `backend/` and `frontend/` directories). The important top-level files are:
 
 ```
-enviro365-withdrawal-system/
-├── backend/
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/com/enviro/assessment/junior/nomdumiso/
-│       │   ├── Enviro365Application.java
-│       │   ├── config/CorsConfig.java
-│       │   ├── controller/          # REST endpoints
-│       │   ├── dto/                 # Request/response shapes
-│       │   ├── entity/              # JPA entities
-│       │   ├── exception/           # Global error handling
-│       │   ├── repository/          # Spring Data JPA repositories
-│       │   └── service/             # Business logic
-│       ├── main/resources/
-│       │   ├── application.properties
-│       │   └── data.sql             # Seed data
-│       └── test/java/.../service/WithdrawalServiceTest.java
-└── frontend/
-    ├── index.html
-    ├── css/styles.css
-    └── js/
-        ├── api.js                   # fetch wrapper
-        └── app.js                   # UI logic
+/ (repo root)
+  pom.xml                    Maven build (Spring Boot 3.3, Java 17)
+  application.properties     Spring properties (H2 / app config)
+  data.sql                   H2 seed data (3 sample investors/products)
+  README.md                  Project overview, API docs, run instructions
+  WithdrawalServiceTest.java Unit tests (JUnit 5 + Mockito) for business rules
+
+  -- Java backend files (package: com.enviro.assessment.junior.nomdumiso) --
+  Enviro365Application.java  Spring Boot entrypoint (main class)
+  CorsConfig.java            CORS setup for local frontend
+  GlobalExceptionHandler.java Centralized mapping of exceptions -> JSON (422 for business rules)
+  BusinessRuleException.java / ResourceNotFoundException.java  domain exceptions
+  Investor.java / Portfolio.java / Product.java  JPA entities
+  ProductType.java / WithdrawalStatus.java enums
+  InvestorRepository.java / ProductRepository.java / PortfolioRepository.java / WithdrawalNoticeRepository.java  Spring Data repositories
+  PortfolioController.java / WithdrawalController.java  REST endpoints
+  PortfolioDto.java / ProductDto.java / WithdrawalRequestDto.java / WithdrawalResponseDto.java  DTO layer
+  WithdrawalService.java     Core business logic (age/balance/90% rules)
+  CsvExportService.java      CSV export streaming helper
+
+  -- Frontend (static) --
+  index.html                 Static UI (withdrawal form, portfolio view)
+  app.js                     Frontend UI logic
+  api.js                     Fetch wrapper (calls backend at http://localhost:8080/api)
+  styles.css                 Styling
 ```
 
-## Running the backend
+If you prefer a two-folder layout (`backend/` and `frontend/`) for clarity, the files can be moved
+without changing the build: `pom.xml` must stay at the repository root for Maven to pick it up, or the
+backend's `pom.xml` can be moved into a `backend/` module and the repo converted to a multi-module build.
 
-Requires Java 17+ and Maven.
+**How it fits together:** Enviro365Application boots a Spring Boot REST API. Controllers (PortfolioController,
+WithdrawalController) accept requests and delegate to services. WithdrawalService enforces the three concrete
+business rules (retirement-age check, not exceeding balance, max 90% cap), updates Product balance inside a
+`@Transactional` flow, and writes a WithdrawalNotice. Repositories persist entities to an in-memory H2 DB
+(seed data loaded from `data.sql`). GlobalExceptionHandler turns BusinessRuleException into 422 responses with
+a clear message that the frontend (api.js → app.js) shows inline.
 
+## How to run it
+Requirements: Java 17+, Maven. The project is runnable from the repository root.
+
+Start the backend:
 ```bash
-cd backend
+# from repo root
 mvn spring-boot:run
+# API base: http://localhost:8080/api
+# H2 console: http://localhost:8080/h2-console (JDBC URL: jdbc:h2:mem:enviro365db, user: sa, no password)
 ```
 
-The API starts on **http://localhost:8080**. The H2 console is available at
-`http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:enviro365db`, user `sa`, no password).
-
-Seed data (`data.sql`) loads automatically on startup with three sample investors:
-
-| ID | Name           | Age (approx.) | Products                                             |
-|----|----------------|----------------|-------------------------------------------------------|
-| 1  | Thabo Mokoena  | 71 (over 65)   | Retirement Annuity (R500,000), Unit Trust (R150,000)   |
-| 2  | Lerato Dlamini | 36 (under 65)  | Retirement Annuity (R300,000), Savings Plan (R75,000)  |
-| 3  | Sipho Nkosi    | 68 (over 65)   | Unit Trust (R220,000)                                  |
-
-Investor 2 is deliberately under 65 so the retirement-age rule can be demonstrated failing.
-
-## Running the frontend
-
-The frontend is static — no build tooling needed. Simplest option: open `frontend/index.html`
-directly in a browser, or serve it with any static server, e.g.:
-
+Run tests:
 ```bash
-cd frontend
-python3 -m http.server 5500
-```
-
-Then visit `http://localhost:5500`. The frontend calls the backend at `http://localhost:8080/api`
-(configured in `frontend/js/api.js`) — CORS is already enabled on the backend for local development.
-
-## Running the tests
-
-```bash
-cd backend
 mvn test
 ```
 
-`WithdrawalServiceTest` covers all three business rules independently (age restriction, balance
-exceeded, 90% cap exceeded), plus the "happy path" approval flow, using Mockito so no database
-is required.
+Open the frontend (static):
+- Open `index.html` directly in a browser, or serve the repo root on a static port:
+```bash
+python3 -m http.server 5500
+# then visit http://localhost:5500/index.html
+```
+Frontend is configured to call the backend at `http://localhost:8080/api` and CORS is enabled for local development.
 
-## API documentation
+## Reproducibility / CI
 
-Base URL: `http://localhost:8080/api`
+I added a GitHub Actions workflow (.github/workflows/ci.yml) that runs the test suite on push and pull requests
+(using JDK 17). The workflow runs `mvn test`, so it will validate the unit tests and fail the CI if anything breaks.
 
-### `GET /investors/{investorId}/portfolio`
-Returns the investor's portfolio details and products.
+Optional: to make local builds independent of a system Maven installation, add the Maven Wrapper to the repo by
+running locally:
 
-```json
-{
-  "portfolioId": 1,
-  "investorId": 1,
-  "investorName": "Thabo Mokoena",
-  "email": "thabo.mokoena@example.com",
-  "age": 71,
-  "totalBalance": 650000.00,
-  "products": [
-    { "id": 1, "name": "Retirement Annuity - Growth Fund", "type": "RETIREMENT_ANNUITY", "balance": 500000.00 },
-    { "id": 2, "name": "Unit Trust - Balanced Fund", "type": "UNIT_TRUST", "balance": 150000.00 }
-  ]
-}
+```bash
+# from repo root (runs locally once and commits the wrapper files)
+mvn -N io.takari:maven:wrapper
 ```
 
-### `POST /withdrawals`
-Creates a withdrawal notice. Runs the three business rules server-side before committing.
+This creates `mvnw`, `mvnw.cmd` and the `.mvn/wrapper` directory. I left this step optional because the wrapper
+includes a jar binary; if you want I can add the wrapper files in a follow-up commit.
 
-Request:
-```json
-{ "productId": 1, "amount": 10000.00 }
-```
-
-Success (200):
-```json
-{
-  "id": 12,
-  "productId": 1,
-  "productName": "Retirement Annuity - Growth Fund",
-  "amount": 10000.00,
-  "balanceBefore": 500000.00,
-  "balanceAfter": 490000.00,
-  "status": "APPROVED",
-  "rejectionReason": null,
-  "requestedAt": "2026-06-10T09:15:00"
-}
-```
-
-Business rule failure (422):
-```json
-{
-  "timestamp": "2026-06-10T09:15:00",
-  "status": 422,
-  "error": "Business Rule Violation",
-  "message": "Withdrawal amount (R95000) exceeds the maximum allowed of 90% of the balance (R90000.00).",
-  "details": null
-}
-```
-
-### `GET /withdrawals?investorId={id}&status={APPROVED|REJECTED}&from={iso}&to={iso}`
-Returns withdrawal history, filterable by investor, status, and date range. All filters optional
-except `investorId`, which the frontend always supplies.
-
-### `GET /withdrawals/export/csv?investorId={id}&status={...}&from={...}&to={...}`
-Same filters as above; streams back a downloadable `withdrawal-statement.csv` file.
-
-## Advanced requirements implemented (3+ required)
-
-- ✅ **Global exception handling** — `GlobalExceptionHandler` maps business rule violations,
-  validation errors, and not-found errors to consistent JSON responses.
-- ✅ **DTO layer** — Entities are never returned directly; all requests/responses go through
-  dedicated DTOs (`PortfolioDto`, `ProductDto`, `WithdrawalRequestDto`, `WithdrawalResponseDto`).
-- ✅ **Input validation** — `WithdrawalRequestDto` uses Bean Validation (`@NotNull`, `@DecimalMin`)
-  enforced via `@Valid` in the controller.
-- ✅ **Unit tests** — `WithdrawalServiceTest` covers all three business rules with Mockito.
-- ✅ **UI validation** — the withdrawal form checks for a selected product and a positive amount
-  before calling the API, and surfaces backend validation/business-rule errors inline.
-
-## AI usage disclosure
-
-AI assistance (Claude, Anthropic) was used to help scaffold this project — generating boilerplate
-(entities, repositories, DTO mapping, CSS) and drafting the README — based on my own design of the
-domain model, business rules, and API shape. I reviewed, understood, and can explain every part of
-this code, including the reasoning behind the JPA relationships, the transactional withdrawal flow,
-and the validation/exception handling strategy, and I'm ready to discuss any design decision or
-alternative approach in a follow-up interview.
-
-## Design notes / assumptions
-
-- A withdrawal is made against a specific **product** (not the portfolio as a whole), since real
-  portfolios hold multiple products with independent balances and rules (e.g. only Retirement
-  Annuities carry the age-65 restriction).
-- Withdrawals are processed synchronously and atomically (`@Transactional`): the product balance
-  is debited and the withdrawal notice is created in the same transaction, so a failure can't leave
-  the balance and history out of sync.
-- Rejected withdrawals are not persisted as failed notices — they return a `422` with a clear reason
-  and never touch the balance. This was a deliberate simplification; persisting rejected attempts
-  for audit purposes would be a natural next step.
-- `ddl-auto=create-drop` recreates the H2 schema on every restart and reloads `data.sql`, which is
-  appropriate for an in-memory demo database but would be replaced with migrations (e.g. Flyway) in
-  production.
+## Try asking
+- Can you walk me through the exact checks and messages in WithdrawalService.validateBusinessRules (file WithdrawalService.java) and explain the ordering of rules?  
+- Where is CSV export implemented (CsvExportService.java) and how would I change it to include rejected withdrawal attempts for auditing?  
+- How is investor age calculated and used (see Investor.getAge() in Investor.java); are there timezone/date assumptions to be aware of for the retirement-age rule?

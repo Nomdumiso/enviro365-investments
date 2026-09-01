@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enviro365 Investments | Withdrawal Portal</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark">E365</span>
+            <span class="brand-name">Enviro365 Investments</span>
+        </div>
+        <div class="investor-switcher">
+            <label for="investorSelect">Investor</label>
+            <select id="investorSelect">
+                <option value="1">Thabo Mokoena (ID 1)</option>
+                <option value="2">Lerato Dlamini (ID 2)</option>
+                <option value="3">Sipho Nkosi (ID 3)</option>
+            </select>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <div id="alertBox" class="alert hidden" role="alert"></div>
+
+        <!-- Portfolio Dashboard -->
+        <section class="card" id="portfolioSection">
+            <div class="card-header">
+                <h2>Portfolio Dashboard</h2>
+                <button id="refreshBtn" class="btn btn-ghost">Refresh</button>
+            </div>
+            <div id="portfolioSummary" class="portfolio-summary"></div>
+            <div class="table-wrap">
+                <table id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Type</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="grid-two">
+            <!-- Withdrawal Form -->
+            <section class="card" id="withdrawalFormSection">
+                <div class="card-header">
+                    <h2>Submit Withdrawal Notice</h2>
+                </div>
+                <form id="withdrawalForm" novalidate>
+                    <div class="form-group">
+                        <label for="productSelect">Product</label>
+                        <select id="productSelect" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="amountInput">Amount (R)</label>
+                        <input type="number" id="amountInput" min="0.01" step="0.01" placeholder="e.g. 5000.00" required>
+                        <small id="balanceHint" class="hint"></small>
+                    </div>
+                    <div class="form-error hidden" id="formError"></div>
+                    <button type="submit" class="btn btn-primary">Submit Withdrawal</button>
+                </form>
+            </section>
+
+            <!-- Business rules reference -->
+            <section class="card" id="rulesSection">
+                <div class="card-header">
+                    <h2>Withdrawal Rules</h2>
+                </div>
+                <ul class="rules-list">
+                    <li>Retirement Annuity withdrawals require the investor to be <strong>over 65</strong>.</li>
+                    <li>A withdrawal can <strong>never exceed the product balance</strong>.</li>
+                    <li>A withdrawal can <strong>never exceed 90%</strong> of the product balance.</li>
+                </ul>
+            </section>
+        </div>
+
+        <!-- Withdrawal History -->
+        <section class="card" id="historySection">
+            <div class="card-header">
+                <h2>Withdrawal History</h2>
+                <div class="history-controls">
+                    <select id="statusFilter">
+                        <option value="">All statuses</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
+                    </select>
+                    <button id="downloadCsvBtn" class="btn btn-secondary">Download CSV</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Amount</th>
+                            <th>Balance After</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <p id="historyEmpty" class="empty-state hidden">No withdrawal notices yet for this investor.</p>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        Enviro365 Investments &middot; Junior Developer Assessment 2026
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
